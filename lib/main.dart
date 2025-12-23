@@ -12,6 +12,13 @@ Future<void> main() async {
   // Initialize Supabase
   // Note: Ensure you have set your Supabase URL and Anon Key in lib/services/supabase_service.dart
   await SupabaseService.initialize();
+// TEST KONEKSI
+  try {
+    final test = await SupabaseService.client.from('recipes').select().limit(1);
+    print('✅ Supabase OK: ${test.length} recipes found');
+  } catch (e) {
+    print('❌ Supabase Error: $e');
+  }
 
   runApp(const FoodieQuestApp());
 }

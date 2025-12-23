@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/food_photo.dart';
 import '../services/image_service.dart';
@@ -20,28 +20,27 @@ class PhotoProvider with ChangeNotifier {
     notifyListeners();
     try {
       _photos = await _service.getPhotos();
-    } catch (e) {
-      debugPrint("Error fetching photos: $e");
     } finally {
-      // _isLoading = false;
+      _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<bool> uploadPhoto(File imageFile, String caption) async {
+  // ⬅️ RETURN IMAGE URL
+  Future<String?> uploadPhoto(Uint8List bytes, String caption) async {
     _isUploading = true;
     notifyListeners();
+
     try {
-      final imageUrl = await _service.uploadImage(imageFile);
-      if (imageUrl != null) {
-        await _service.savePhotoData(imageUrl, caption);
-        await fetchPhotos(); // Refresh list
-        return true;
-      }
-      return false;
+      final imageUrl = await _service.uploadImageBytes(bytes);
+      if (imageUrl == null) return null;
+
+      await _service.savePhotoData(imageUrl, caption);
+      await fetchPhotos();
+      return imageUrl;
     } catch (e) {
-      debugPrint("Error uploading photo: $e");
-      return false;
+      debugPrint('❌ Upload error: $e');
+      return null;
     } finally {
       _isUploading = false;
       notifyListeners();

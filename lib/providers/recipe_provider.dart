@@ -14,13 +14,20 @@ class RecipeProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  String? _error;
+  String? get error => _error;
+
   Future<void> fetchRecipes() async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
+
     try {
       _recipes = await _api.getRecipes();
+      _error = null;
     } catch (e) {
-      debugPrint("Error fetching recipes: $e");
+      _error = 'Gagal memuat resep: $e';
+      debugPrint("❌ Error fetching recipes: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -34,11 +41,15 @@ class RecipeProvider with ChangeNotifier {
     }
 
     _isLoading = true;
+    _error = null;
     notifyListeners();
+
     try {
       _recipes = await _api.searchRecipes(query);
+      _error = null;
     } catch (e) {
-      debugPrint("Error searching recipes: $e");
+      _error = 'Gagal mencari resep: $e';
+      debugPrint("❌ Error searching recipes: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -51,6 +62,7 @@ class RecipeProvider with ChangeNotifier {
     } else {
       _favoriteIds.add(recipeId);
     }
+    notifyListeners(); // ⚠️ PENTING: Tanpa ini UI tidak akan update!
   }
 
   bool isFavorite(int recipeId) {
@@ -59,5 +71,20 @@ class RecipeProvider with ChangeNotifier {
 
   List<Recipe> get favoriteRecipes {
     return _recipes.where((r) => _favoriteIds.contains(r.id)).toList();
+  }
+
+  // Tambahan: Clear error message
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  // Tambahan: Get recipe by ID
+  Recipe? getRecipeById(int id) {
+    try {
+      return _recipes.firstWhere((r) => r.id == id);
+    } catch (e) {
+      return null;
+    }
   }
 }

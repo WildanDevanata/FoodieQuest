@@ -14,16 +14,9 @@ class FoodPhoto {
   factory FoodPhoto.fromJson(Map<String, dynamic> json) {
     return FoodPhoto(
       id: json['id'] as int,
-      imageUrl: json['img_url'] as String,
+      imageUrl: json['image_url'] as String, // ✅ FIX
       caption: json['caption'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'image_url': imageUrl,
-      'caption': caption,
-    };
   }
 }

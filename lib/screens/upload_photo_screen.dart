@@ -1,7 +1,8 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/photo_provider.dart';
 import '../utils/image_helper.dart';
 
@@ -13,39 +14,36 @@ class UploadPhotoScreen extends StatefulWidget {
 }
 
 class _UploadPhotoScreenState extends State<UploadPhotoScreen> {
-  File? _image;
-  final _captionController = TextEditingController();
+  XFile? _image;
+  Uint8List? _imageBytes;
+  final TextEditingController _captionController = TextEditingController();
 
-  Future<void> _pickImage() async {
-    final file = await ImageHelper.pickImage(ImageSource.gallery);
+  Future<void> _pick(ImageSource source) async {
+    final file = await ImageHelper.pickImage(source);
+    if (file == null || !mounted) return;
+
+    final bytes = await file.readAsBytes();
+
     setState(() {
       _image = file;
+      _imageBytes = bytes;
     });
   }
 
-  Future<void> _takePhoto() async {
-    final file = await ImageHelper.pickImage(ImageSource.camera);
-    setState(() {
-      _image = file;
-    });
-  }
+  Future<void> _upload() async {
+    if (_imageBytes == null) return;
 
-  Future<void> _upload(BuildContext context) async {
-    if (_image == null) return;
-
-    final success = await Provider.of<PhotoProvider>(context, listen: false)
-        .uploadPhoto(_image!, _captionController.text);
+    final imageUrl = await context
+        .read<PhotoProvider>()
+        .uploadPhoto(_imageBytes!, _captionController.text);
 
     if (!mounted) return;
 
-    if (success) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Upload successful!')),
-      );
+    if (imageUrl != null) {
+      Navigator.pop(context, true); // ⬅️ balik ke Photos
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Upload failed.')),
+        const SnackBar(content: Text('Upload gagal')),
       );
     }
   }
@@ -55,30 +53,28 @@ class _UploadPhotoScreenState extends State<UploadPhotoScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Upload Photo')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                height: 200,
-                width: double.infinity,
-                color: Colors.grey[300],
-                child: _image != null
-                    ? Image.file(_image!, fit: BoxFit.cover)
-                    : const Icon(Icons.add_a_photo, size: 50),
-              ),
+            Container(
+              height: 220,
+              width: double.infinity,
+              color: Colors.grey[300],
+              child: _imageBytes != null
+                  ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                  : const Icon(Icons.add_a_photo, size: 60),
             ),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 TextButton.icon(
-                  onPressed: _pickImage,
+                  onPressed: () => _pick(ImageSource.gallery),
                   icon: const Icon(Icons.photo_library),
                   label: const Text('Gallery'),
                 ),
                 TextButton.icon(
-                  onPressed: _takePhoto,
+                  onPressed: () => _pick(ImageSource.camera),
                   icon: const Icon(Icons.camera_alt),
                   label: const Text('Camera'),
                 ),
@@ -90,14 +86,14 @@ class _UploadPhotoScreenState extends State<UploadPhotoScreen> {
             ),
             const SizedBox(height: 20),
             Consumer<PhotoProvider>(
-              builder: (context, provider, child) {
-                return provider.isUploading
-                    ? const CircularProgressIndicator()
-                    : ElevatedButton(
-                        onPressed:
-                            _image != null ? null : () => _upload(context),
-                        child: const Text('Upload'),
-                      );
+              builder: (_, provider, __) {
+                if (provider.isUploading) {
+                  return const CircularProgressIndicator();
+                }
+                return ElevatedButton(
+                  onPressed: _imageBytes != null ? _upload : null,
+                  child: const Text('Upload'),
+                );
               },
             ),
           ],
